@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Simple Expense Tracker (UGX)</title>
+<style>
+  body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: #f8f9fa;
+    margin: 0;
+    padding: 20px;
+    display: flex;
+    justify-content: center;
+    min-height: 100vh;
+  }
+  .container {
+    background: white;
+    width: 420px;
+    max-width: 100%;
+    border-radius: 12px;
+    box-shadow: 0 0 15px rgba(0,0,0,0.1);
+    padding: 25px;
+  }
+  h1 {
+    text-align: center;
+    color: #17a2b8;
+    margin-bottom: 20px;
+  }
+  form {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+  input[type="text"], input[type="number"] {
+    padding: 10px;
+    font-size: 1rem;
+    border-radius: 6px;
+    border: 1px solid #ccc;
+    outline-color: #17a2b8;
+    flex-grow: 1;
+  }
+  input[type="number"] {
+    max-width: 120px;
+  }
+  button.add-btn {
+    background: #17a2b8;
+    border: none;
+    color: white;
+    padding: 10px 20px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: background-color 0.3s;
+  }
+  button.add-btn:hover {
+    background: #117a8b;
+  }
+  ul.expense-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+  li.expense-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px;
+    margin-bottom: 10px;
+    background: #e9f7fb;
+    border-radius: 8px;
+    box-shadow: inset 0 0 5px #b3e0ee;
+  }
+  .expense-info {
+    flex-grow: 1;
+    margin-right: 15px;
+  }
+  .expense-name {
+    font-weight: 600;
+    font-size: 1rem;
+  }
+  .expense-amount {
+    font-size: 1rem;
+    color: #0c5460;
+  }
+  .expense-actions button {
+    background: none;
+    border: none;
+    color: #17a2b8;
+    cursor: pointer;
+    font-size: 1.2rem;
+    margin-left: 12px;
+    transition: color 0.2s;
+    user-select: none;
+  }
+  .expense-actions button:hover {
+    color: #117a8b;
+  }
+  input.edit-input {
+    font-size: 1rem;
+    padding: 5px 8px;
+    border-radius: 6px;
+    border: 1px solid #888;
+    outline-color: #17a2b8;
+    width: 100%;
+  }
+  .total-container {
+    text-align: right;
+    font-weight: 700;
+    font-size: 1.2rem;
+    color: #17a2b8;
+    margin-top: 20px;
+  }
+</style>
+</head>
+<body>
+
+<div class="container" role="main" aria-label="Simple Expense Tracker (UGX)">
+  <h1>Simple Expense Tracker (UGX)</h1>
+  <form id="expenseForm" aria-label="Add new expense">
+    <input type="text" id="expenseName" placeholder="Expense Name" aria-required="true" autocomplete="off" />
+    <input type="number" id="expenseAmount" placeholder="Amount" min="0" step="1" aria-required="true" />
+    <button type="submit" class="add-btn" aria-label="Add expense">Add</button>
+  </form>
+  <ul id="expenseList" class="expense-list"></ul>
+  <div class="total-container" id="totalAmount">Total: UGX 0</div>
+</div>
+
+<script>
+  (() => {
+    const expenseForm = document.getElementById('expenseForm');
+    const expenseNameInput = document.getElementById('expenseName');
+    const expenseAmountInput = document.getElementById('expenseAmount');
+    const expenseList = document.getElementById('expenseList');
+    const totalAmount = document.getElementById('totalAmount');
+
+    let expenses = JSON.parse(localStorage.getItem('expenses')) || [];
+
+    function saveExpenses() {
+      localStorage.setItem('expenses', JSON.stringify(expenses));
+    }
+
+    function updateTotal() {
+      const total = expenses.reduce((sum, e) => sum + parseInt(e.amount), 0);
+      totalAmount.textContent = `Total: UGX ${total.toLocaleString()}`;
+    }
+
+    function renderExpenses() {
+      expenseList.innerHTML = '';
+      if (expenses.length === 0) {
+        expenseList.innerHTML = '<p style="color:#555; text-align:center;">No expenses yet. Add some above!</p>';
+        updateTotal();
+        return;
+      }
+      expenses.forEach(expense => {
+        const li = document.createElement('li');
+        li.className = 'expense-item';
+        li.dataset.id = expense.id;
+
+        const infoDiv = document.createElement('div');
+        infoDiv.className = 'expense-info';
+
+        const nameSpan = document.createElement('span');
+        nameSpan.className = 'expense-name';
+        nameSpan.textContent = expense.name;
+
+        const amountSpan = document.createElement('span');
+        amountSpan.className = 'expense-amount';
+        amountSpan.textContent = `UGX ${parseInt(expense.amount).toLocaleString()}`;
+
+        infoDiv.appendChild(nameSpan);
+        infoDiv.appendChild(document.createTextNode(' - '));
+        infoDiv.appendChild(amountSpan);
+
+        // Editable inputs initially hidden
+        const editNameInput = document.createElement('input');
+        editNameInput.type = 'text';
+        editNameInput.className = 'edit-input';
+        editNameInput.value = expense.name;
+        editNameInput.style.display = 'none';
+
+        const editAmountInput = document.createElement('input');
+        editAmountInput.type = 'number';
+        editAmountInput.min = 0;
+        editAmountInput.step = 1;
+        editAmountInput.className = 'edit-input';
+        editAmountInput.value = expense.amount;
+        editAmountInput.style.display = 'none';
+        editAmountInput.style.width = '110px';
+        editAmountInput.style.marginLeft = '10px';
+
+        const actionsDiv = document.createElement('div');
+        actionsDiv.className = 'expense-actions';
+
+        const editBtn = document.createElement('button');
+        editBtn.title = 'Edit Expense';
+        editBtn.textContent = '✏️';
+
+        const saveBtn = document.createElement('button');
+        saveBtn.title = 'Save Changes';
+        saveBtn.textContent = '💾';
+        saveBtn.style.display = 'none';
+
+        const deleteBtn = document.createElement('button');
+        deleteBtn.title = 'Delete Expense';
+        deleteBtn.textContent = '🗑️';
+
+        actionsDiv.appendChild(editBtn);
+        actionsDiv.appendChild(saveBtn);
+        actionsDiv.appendChild(deleteBtn);
+
+        li.appendChild(infoDiv);
+        li.appendChild(editNameInput);
+        li.appendChild(editAmountInput);
+        li.appendChild(actionsDiv);
+
+        expenseList.appendChild(li);
+
+        // Use closures to capture current expense in event listeners
+        editBtn.addEventListener('click', () => {
+          infoDiv.style.display = 'none';
+          editNameInput.style.display = 'inline-block';
+          editAmountInput.style.display = 'inline-block';
+          editBtn.style.display = 'none';
+          saveBtn.style.display = 'inline-block';
+          editNameInput.focus();
+        });
+
+        saveBtn.addEventListener('click', () => {
+          const newName = editNameInput.value.trim();
+          const newAmount = editAmountInput.value;
+          if (!newName || newAmount === '' || isNaN(newAmount) || parseInt(newAmount) < 0) {
+            alert('Please enter valid expense name and amount.');
+            return;
+          }
+          // Update the expense object in the array
+          const index = expenses.findIndex(e => e.id === expense.id);
+          if (index !== -1) {
+            expenses[index].name = newName;
+            expenses[index].amount = parseInt(newAmount);
+            saveExpenses();
+            renderExpenses();
+          }
+        });
+
+        editNameInput.addEventListener('keypress', e => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            saveBtn.click();
+          } else if (e.key === 'Escape') {
+            renderExpenses();
+          }
+        });
+
+        editAmountInput.addEventListener('keypress', e => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            saveBtn.click();
+          } else if (e.key === 'Escape') {
+            renderExpenses();
+          }
+        });
+
+        deleteBtn.addEventListener('click', () => {
+          if (confirm('Are you sure you want to delete this expense?')) {
+            expenses = expenses.filter(e => e.id !== expense.id);
+            saveExpenses();
+            renderExpenses();
+          }
+        });
+      });
+      updateTotal();
+    }
+
+    expenseForm.addEventListener('submit', e => {
+      e.preventDefault();
+      const name = expenseNameInput.value.trim();
+      const amountRaw = expenseAmountInput.value;
+      const amount = parseInt(amountRaw);
+
+      if (!name) {
+        alert('Please enter the expense name.');
+        return;
+      }
+      if (amountRaw === '' || isNaN(amount) || amount < 0) {
+        alert('Please enter a valid expense amount.');
+        return;
+      }
+      expenses.push({
+        id: Date.now().toString(),
+        name,
+        amount
+      });
+      saveExpenses();
+      renderExpenses();
+      expenseNameInput.value = '';
+      expenseAmountInput.value = '';
+      expenseNameInput.focus();
+    });
+
+    renderExpenses();
+  })();
+</script>
+
+</body>
+</html>
+
